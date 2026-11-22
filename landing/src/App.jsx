@@ -7,6 +7,7 @@ import Compare from './components/Compare'
 import Download from './components/Download'
 import Footer from './components/Footer'
 
+// Seknova landing page
 export default function App() {
   return (
     <>
