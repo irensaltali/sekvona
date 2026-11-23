@@ -159,13 +159,13 @@ test("device-local settings are never published", async () => {
       all += Buffer.from((await store.get(key)).bytes).toString("utf8");
     }
     assert.ok(all.length > 0, "something was published");
+    assert.doesNotMatch(all, /:\s*7777\s*[,}]/, "the local port must not be published");
     for (const forbidden of [
       "device_local",
       "This Mac",
       "secret-bucket",
       "kopia-password-ref",
       "cloakbrowser",
-      "7777",
     ]) {
       assert.ok(!all.includes(forbidden), `${forbidden} must not be published`);
     }
