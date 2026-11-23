@@ -1,6 +1,6 @@
 import Nav from './components/Nav'
 import Hero from './components/Hero'
-import AppMockup from './components/AppMockup'
+import AppScreenshot from './components/AppScreenshot'
 import Features from './components/Features'
 import HowItWorks from './components/HowItWorks'
 import Compare from './components/Compare'
@@ -13,7 +13,7 @@ export default function App() {
     <>
       <Nav />
       <Hero />
-      <AppMockup />
+      <AppScreenshot />
       <Features />
       <HowItWorks />
       <Compare />
