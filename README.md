@@ -7,6 +7,8 @@
 
 Sekvona is the new name for this fork of MultiZen. Existing installations keep their profiles and settings. Releases preceding the rename use the MultiZen name.
 
+![Sekvona desktop app showing six demo browser profiles](landing/src/assets/sekvona-profiles-demo.webp)
+
 ## Contributing
 
 Branch from `development` using `feature/<description>`. Open feature PRs against `development`, then promote tested changes to `main` through a release PR. See [branch rules](AGENTS.md).
