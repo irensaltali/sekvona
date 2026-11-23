@@ -1,0 +1,4 @@
+description: Build Developer ID signed and ASC-notarized macOS installers for arm64 and x64 locally.
+steps:
+  - name: package
+    run: bash scripts/ci-mac.sh --signed
