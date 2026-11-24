@@ -1161,6 +1161,7 @@ app.whenReady().then(async () => {
     mcpAuthToken: httpTransport ? mcpAuthToken : null,
     appVersion: app.getVersion(),
     platform: process.platform,
+    updateMode: updater.updateMode,
   }));
 
   // Open an external link in the OS default browser. STRICTLY allowlisted to
