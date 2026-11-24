@@ -110,6 +110,7 @@ export interface SystemInfo {
   mcpAuthToken: string | null;
   appVersion: string;
   platform: string;
+  updateMode?: "apple" | "manual" | "automatic";
 }
 
 export type RunningStateChange =

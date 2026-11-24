@@ -55,6 +55,10 @@ for arch in "${arches[@]}"; do
     if [[ "${SEKVONA_MAC_RELEASE:-0}" == 1 ]]; then
       destination="$target/$arch"
       mkdir "$destination"
+      cp latest-mac.yml "$destination/"
+      for blockmap in ./*.zip.blockmap; do
+        [[ ! -f "$blockmap" ]] || cp "$blockmap" "$destination/"
+      done
     fi
     cp ./*.dmg ./*.zip SHA256SUMS INSTALL.txt "$destination/"
     cd "$destination"

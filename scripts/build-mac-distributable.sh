@@ -53,7 +53,8 @@ if [[ "${SEKVONA_MAC_RELEASE:-0}" == 1 ]]; then
   export CSC_NAME="$identity"
   asc notarization list --limit 1 >/dev/null
   export SEKVONA_MAC_RELEASE_ARCH="$ARCH"
-  builder_config+=(--config.mac.identity="$identity" --config.mac.hardenedRuntime=true --config.forceCodeSigning=true)
+  builder_config+=(--config.mac.identity="$identity" --config.mac.hardenedRuntime=true --config.forceCodeSigning=true
+    --config.extraMetadata.sekvonaSignedMacUpdates=true)
 elif [[ ! -d "$ROOT_DIR/node_modules" ]]; then
   echo "error: dependencies are missing; run 'yarn install' first" >&2
   exit 1
@@ -119,6 +120,24 @@ for artifact in "$DMG_NAME" "$ZIP_NAME"; do
   fi
   cp "$RELEASE_DIR/$artifact" "$BUNDLE_DIR/"
 done
+
+if [[ "${SEKVONA_MAC_RELEASE:-0}" == 1 ]]; then
+  # Stapling modifies the DMG after electron-builder calculates its checksum.
+  # Squirrel updates use the signed ZIP, which is already final at that point.
+  node --input-type=module - "$RELEASE_DIR/latest-mac.yml" "$BUNDLE_DIR/latest-mac.yml" "$ZIP_NAME" <<'JS'
+import { readFileSync, writeFileSync } from "node:fs";
+import { parse, stringify } from "yaml";
+
+const [, , source, destination, name] = process.argv;
+const feed = parse(readFileSync(source, "utf8"));
+const zip = feed.files.find((file) => file.url === name);
+if (!zip) throw new Error(`Missing update ZIP ${name} in ${source}`);
+writeFileSync(destination, stringify({ ...feed, files: [zip], path: zip.url, sha512: zip.sha512 }));
+JS
+  if [[ -f "$RELEASE_DIR/$ZIP_NAME.blockmap" ]]; then
+    cp "$RELEASE_DIR/$ZIP_NAME.blockmap" "$BUNDLE_DIR/"
+  fi
+fi
 
 (
   cd "$BUNDLE_DIR"

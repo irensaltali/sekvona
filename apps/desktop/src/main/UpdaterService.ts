@@ -1,6 +1,8 @@
 import { BRAND } from "./brand";
 import { app } from "electron";
 import { EventEmitter } from "node:events";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import electronUpdater from "electron-updater";
 import type { UpdateInfo, ProgressInfo } from "electron-updater";
 import type { AppSettings } from "@multizen/settings-store";
@@ -28,17 +30,8 @@ interface UpdaterServiceOptions {
  * App self-update via electron-updater, wrapped so the renderer sees a single
  * {@link UpdateStatus} stream (mirrors {@link ChromiumBootstrap}).
  *
- * Platform behaviour:
- *   - Windows (NSIS) + Linux (AppImage): full flow — background check →
- *     autoDownload → "ready" → quitAndInstall on restart.
- *   - macOS: CHECK-ONLY. Auto-install is impossible without an Apple Developer
- *     ID (Squirrel.Mac rejects the ad-hoc signature), so we never download or
- *     install; on a newer version we emit a terminal "available" with a DMG
- *     deep-link and let the user download manually. Squirrel signature errors
- *     are swallowed so they never surface raw.
- *
- * No-op when `!app.isPackaged` (dev) or when the environment can't update
- * (e.g. Linux not launched as a real .AppImage) — never crashes or error-toasts.
+ * Apple handles App Store and TestFlight updates. GitHub packages install
+ * updates themselves when their packaging channel supports it.
  */
 export class UpdaterService extends EventEmitter {
   private status: UpdateStatus = { kind: "idle" };
@@ -50,6 +43,22 @@ export class UpdaterService extends EventEmitter {
   private started = false;
   private readonly getSettings: () => AppSettings;
   private readonly isMac = process.platform === "darwin";
+
+  readonly updateMode = this.getUpdateMode();
+
+  private getUpdateMode(): "apple" | "manual" | "automatic" {
+    if (process.mas) return "apple";
+    if (!this.isMac) return "automatic";
+    if (!app.isPackaged) return "manual";
+
+    try {
+      const metadata = JSON.parse(readFileSync(join(app.getAppPath(), "package.json"), "utf8"));
+      if (metadata.sekvonaSignedMacUpdates === true) return "automatic";
+    } catch {
+      // Older or incomplete packages use the DMG link.
+    }
+    return "manual";
+  }
 
   constructor(opts: UpdaterServiceOptions) {
     super();
@@ -83,7 +92,7 @@ export class UpdaterService extends EventEmitter {
       // Store builds update through Apple; development has no update feed.
       return;
     }
-    autoUpdater.autoDownload = !this.isMac;
+    autoUpdater.autoDownload = this.updateMode === "automatic";
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.allowPrerelease = false;
     autoUpdater.fullChangelog = false;
@@ -100,9 +109,9 @@ export class UpdaterService extends EventEmitter {
     return this.status;
   }
 
-  /** Apply a staged update (Windows/Linux only). Quits and relaunches. */
+  /** Apply a staged GitHub update and relaunch. */
   installAndRestart(): void {
-    if (this.isMac) return;
+    if (this.updateMode !== "automatic" || this.status.kind !== "ready") return;
     autoUpdater.quitAndInstall();
   }
 
@@ -175,15 +184,14 @@ export class UpdaterService extends EventEmitter {
 
     autoUpdater.on("update-available", (info: UpdateInfo) => {
       this.pendingVersion = info.version;
-      if (this.isMac) {
-        // Terminal on macOS — we can't install, only point at the DMG.
+      if (this.updateMode === "manual") {
         this.set({
           kind: "available",
           version: info.version,
           downloadUrl: this.downloadUrlFor(info.version),
         });
       }
-      // Windows/Linux: autoDownload is running; wait for progress/downloaded.
+      // Automatic downloads report progress and completion separately.
     });
 
     autoUpdater.on("update-not-available", () => {
@@ -219,12 +227,12 @@ export class UpdaterService extends EventEmitter {
       this.set({ kind: "idle" });
       return;
     }
-    // macOS install path is never invoked (autoDownload=false, no
-    // quitAndInstall), but if Squirrel ever rejects the ad-hoc signature don't
-    // surface it raw. Real check failures (offline, GitHub 5xx) DO surface so
-    // the UI never gets stuck on "checking".
-    if (this.isMac && /signature|not signed|code sign/i.test(msg)) {
-      this.set({ kind: "idle" });
+    if (this.isMac && this.pendingVersion && /signature|not signed|code sign/i.test(msg)) {
+      this.set({
+        kind: "available",
+        version: this.pendingVersion,
+        downloadUrl: this.downloadUrlFor(this.pendingVersion),
+      });
       return;
     }
     this.set({ kind: "error", message: msg });

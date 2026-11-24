@@ -29,7 +29,7 @@ The result: your AI agent in Cursor or Claude Desktop can complete real authenti
 
 Download the architecture-matched DMG from [this fork's releases](https://github.com/irensaltali/sekvona/releases/latest), then drag Sekvona into Applications. This fork includes Cloud Sync and the MCP gateway. Use this repository’s builds; upstream installers do not include the fork additions.
 
-The Mac build uses ad-hoc signing. If macOS blocks the downloaded app, run:
+Older Mac builds use ad-hoc signing. If macOS blocks the downloaded app, run:
 
 ```sh
 xattr -cr /Applications/Sekvona.app
@@ -248,7 +248,7 @@ Requires Node 22+ and Yarn 4 (via Corepack).
 
 ## Fork releases and updates
 
-Updates come exclusively from `irensaltali/sekvona`. On macOS the app checks for updates and links to the matching DMG; silent installation is not enabled for ad-hoc signatures. Windows and Linux use electron-updater's install flow. Kopia is bundled in the Mac releases; Windows/Linux Cloud Sync still requires a compatible Kopia installation on PATH.
+GitHub installs use this fork’s GitHub Releases feed. Developer ID signed macOS releases, Windows NSIS releases, and Linux AppImages can download and install updates through the app. Older ad-hoc macOS installs link to the matching DMG. Install the first Developer ID signed DMG once to enable in-app installation for later releases. Mac App Store and TestFlight installations update through Apple. Kopia is bundled in Mac releases; Windows/Linux Cloud Sync requires a compatible Kopia installation on PATH.
 
 To publish the next version from the tested `main` branch:
 

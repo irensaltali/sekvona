@@ -54,3 +54,22 @@ test('refuses a missing architecture', t => {
   rmSync(join(input, 'release-mac-x64'), { recursive: true });
   assert.throws(() => collectRelease(input, output, '0.4.3'), /Missing Mac x64/);
 });
+
+test('publishes signed DMGs alongside a ZIP-only macOS update feed', t => {
+  const { input, output } = fixture(t);
+  for (const arch of ['arm64', 'x64']) {
+    const dir = join(input, `release-mac-${arch}`);
+    const feedPath = join(dir, 'latest-mac.yml');
+    const feed = parse(readFileSync(feedPath, 'utf8'));
+    feed.files = feed.files.filter(file => file.url.endsWith('.zip'));
+    writeFileSync(feedPath, stringify(feed));
+    writeFileSync(join(dir, `Sekvona-mac-${arch}.dmg`), 'DMG with Apple ticket');
+  }
+  assert.deepEqual(collectRelease(input, output, '0.4.3'), { assets: 8, feeds: 3 });
+  const feed = parse(readFileSync(join(output, 'latest-mac.yml'), 'utf8'));
+  assert.deepEqual(feed.files.map(file => file.url), [
+    'Sekvona-mac-arm64.zip',
+    'Sekvona-mac-x64.zip',
+  ]);
+  assert.equal(readFileSync(join(output, 'Sekvona-mac-arm64.dmg'), 'utf8'), 'DMG with Apple ticket');
+});
