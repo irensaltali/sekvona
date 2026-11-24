@@ -12,6 +12,7 @@ directories:
 # executables, so without this Gatekeeper blocks spawning kopia. No-op on
 # non-macOS. See scripts/afterPack.cjs.
 afterPack: ./scripts/afterPack.cjs
+afterSign: ./scripts/afterSign.cjs
 
 files:
   - "out/**/*"

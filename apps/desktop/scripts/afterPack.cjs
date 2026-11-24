@@ -52,7 +52,7 @@ exports.default = async function afterPack(context) {
     "--force",
     "--sign",
     identity,
-    "--timestamp=none",
+    identity === "-" ? "--timestamp=none" : "--timestamp",
     "--options",
     "runtime",
     kopiaBin,

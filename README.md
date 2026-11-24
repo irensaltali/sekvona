@@ -269,6 +269,14 @@ The `Release` workflow verifies the tag, runs tests, and packages Apple Silicon,
 
 For a local macOS CI build, run `dagu start --default-working-dir "$PWD" .dagu/sekvona-mac.yaml` from the repository root on a Mac with Yarn and Dagu installed. This manual job builds the current committed HEAD in a temporary worktree for the host architecture, verifies the DMG and ZIP, and saves them under `dist/ci/`.
 
+To prepare signed macOS release assets locally, set `CSC_NAME` to the SHA-1 fingerprint of a **Developer ID Application** identity in your Keychain. Authenticate the `asc` CLI with the same Apple Developer team. Then run:
+
+```sh
+dagu start --default-working-dir "$PWD" .dagu/sekvona-mac-release.yaml
+```
+
+The job builds the committed HEAD for Apple Silicon and Intel. It signs the app and embedded binaries with Hardened Runtime, notarizes the app and DMG through ASC, checks Gatekeeper and the stapled tickets, and writes verified DMGs, ZIPs, and checksums to `dist/ci/`. It prepares assets without publishing a GitHub release.
+
 Preserve fork features when incorporating upstream: fetch `upstream`, merge its `master` into this fork's `main`, resolve conflicts, and run the test suite. Do not reset `main` to upstream or change the fork's update destination.
 
 ## Cloud Sync

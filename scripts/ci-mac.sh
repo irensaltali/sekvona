@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${1:-}" == --signed && $# == 1 ]]; then
+  export SEKVONA_MAC_RELEASE=1
+  export CSC_IDENTITY_AUTO_DISCOVERY=false
+  arches=(arm64 x64)
+elif [[ $# == 0 ]]; then
+  unset SEKVONA_MAC_RELEASE
+  unset CSC_NAME
+  arch="$(uname -m)"
+  arches=("${arch/x86_64/x64}")
+else
+  echo "Usage: bash scripts/ci-mac.sh [--signed]" >&2
+  exit 2
+fi
+
 root="$(git rev-parse --show-toplevel)"
 commit="$(git -C "$root" rev-parse HEAD)"
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/sekvona-mac.XXXXXX")"
@@ -15,14 +29,36 @@ trap cleanup EXIT
 
 git -C "$root" worktree add --detach "$checkout" "$commit"
 cd "$checkout"
-yarn install --immutable
-CSC_IDENTITY_AUTO_DISCOVERY=false yarn dist:mac
-arch="$(uname -m)"
-cd "dist/macos-${arch/x86_64/x64}"
-shasum -a 256 -c SHA256SUMS
+for arch in "${arches[@]}"; do
+  if [[ "${SEKVONA_MAC_RELEASE:-0}" == 1 ]]; then
+    # Keep the host tools and include the target's optional native prebuilds.
+    # The config change is scoped to this disposable worktree.
+    yarn config set supportedArchitectures.cpu --json "[\"current\",\"$arch\"]"
+    bash scripts/build-mac-distributable.sh "$arch"
+  else
+    yarn install --immutable
+    CSC_IDENTITY_AUTO_DISCOVERY=false yarn dist:mac "$arch"
+  fi
+done
+
 mkdir -p "$root/dist/ci"
-target="$(mktemp -d "$root/dist/ci/${commit:0:12}-$arch.XXXXXX")"
-cp ./*.dmg ./*.zip SHA256SUMS INSTALL.txt "$target/"
-cd "$target"
-shasum -a 256 -c SHA256SUMS
+if [[ "${SEKVONA_MAC_RELEASE:-0}" == 1 ]]; then
+  target="$(mktemp -d "$root/dist/ci/${commit:0:12}-signed.XXXXXX")"
+else
+  target="$(mktemp -d "$root/dist/ci/${commit:0:12}-$(uname -m).XXXXXX")"
+fi
+for arch in "${arches[@]}"; do
+  (
+    cd "$checkout/dist/macos-$arch"
+    shasum -a 256 -c SHA256SUMS
+    destination="$target"
+    if [[ "${SEKVONA_MAC_RELEASE:-0}" == 1 ]]; then
+      destination="$target/$arch"
+      mkdir "$destination"
+    fi
+    cp ./*.dmg ./*.zip SHA256SUMS INSTALL.txt "$destination/"
+    cd "$destination"
+    shasum -a 256 -c SHA256SUMS
+  )
+done
 echo "Verified installers in $target"
