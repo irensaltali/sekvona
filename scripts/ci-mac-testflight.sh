@@ -39,7 +39,7 @@ case "${1:-}" in
     yarn workspace @multizen/desktop exec electron-builder --mac mas --arm64 --publish never \
       --config.appId="$bundle_id" --config.buildVersion="$build_number" \
       --config.mas.identity="$team_id" \
-      --config.mac.minimumSystemVersion=12.0 \
+      --config.mac.minimumSystemVersion=12.0.0 \
       --config.mas.provisioningProfile="$report/Seknova.provisionprofile"
 
     app="apps/desktop/release/mas-arm64/Sekvona.app"
@@ -49,7 +49,7 @@ case "${1:-}" in
     grep -F "($team_id)" "$report/package-signature.txt" >/dev/null
     test "$(plutil -extract CFBundleIdentifier raw -o - "$app/Contents/Info.plist")" = "$bundle_id"
     test "$(plutil -extract CFBundleVersion raw -o - "$app/Contents/Info.plist")" = "$build_number"
-    test "$(plutil -extract LSMinimumSystemVersion raw -o - "$app/Contents/Info.plist")" = 12.0
+    test "$(plutil -extract LSMinimumSystemVersion raw -o - "$app/Contents/Info.plist")" = 12.0.0
     unreadable="$(find "$app" -type f ! -perm -004 -print)"
     if [[ -n "$unreadable" ]]; then
       printf 'Packaged files not readable by all users:\n%s\n' "$unreadable" >&2
