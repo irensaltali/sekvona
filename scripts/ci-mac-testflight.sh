@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 022
 
 cd "$(git rev-parse --show-toplevel)"
 app_id=6838639211
@@ -28,6 +29,8 @@ case "${1:-}" in
       exit 1
     fi
     unlink "$report/profile.plist"
+    # electron-builder preserves this file's mode when embedding it in the app.
+    install -m 0644 "$signing_dir/Seknova.provisionprofile" "$report/Seknova.provisionprofile"
 
     yarn install --immutable
     yarn workspace @multizen/desktop prepare:kopia --arch=arm64
@@ -36,7 +39,8 @@ case "${1:-}" in
     yarn workspace @multizen/desktop exec electron-builder --mac mas --arm64 --publish never \
       --config.appId="$bundle_id" --config.buildVersion="$build_number" \
       --config.mas.identity="$team_id" \
-      --config.mas.provisioningProfile="$signing_dir/Seknova.provisionprofile"
+      --config.mac.minimumSystemVersion=12.0.0 \
+      --config.mas.provisioningProfile="$report/Seknova.provisionprofile"
 
     app="apps/desktop/release/mas-arm64/Sekvona.app"
     pkg="apps/desktop/release/mas-arm64/Seknova-TestFlight-$version-arm64.pkg"
@@ -45,6 +49,13 @@ case "${1:-}" in
     grep -F "($team_id)" "$report/package-signature.txt" >/dev/null
     test "$(plutil -extract CFBundleIdentifier raw -o - "$app/Contents/Info.plist")" = "$bundle_id"
     test "$(plutil -extract CFBundleVersion raw -o - "$app/Contents/Info.plist")" = "$build_number"
+    test "$(plutil -extract LSMinimumSystemVersion raw -o - "$app/Contents/Info.plist")" = 12.0.0
+    unreadable="$(find "$app" -type f ! -perm -004 -print)"
+    if [[ -n "$unreadable" ]]; then
+      printf 'Packaged files not readable by all users:\n%s\n' "$unreadable" >&2
+      exit 1
+    fi
+    unlink "$report/Seknova.provisionprofile"
     ditto "$pkg" "$report/Seknova-TestFlight.pkg"
     ;;
   upload)
