@@ -277,6 +277,10 @@ dagu start --default-working-dir "$PWD" .dagu/sekvona-mac-release.yaml
 
 The job builds the committed HEAD for Apple Silicon and Intel. It signs the app and embedded binaries with Hardened Runtime, notarizes the app and DMG through ASC, checks Gatekeeper and the stapled tickets, and writes verified DMGs, ZIPs, and checksums to `dist/ci/`. It prepares assets without publishing a GitHub release.
 
+The **macOS local release** GitHub Actions workflow runs on the dedicated Mac mini runner `sekvona-macos-release`. Desktop changes merged to `development` build an Apple Silicon Mac App Store package and upload it to the Seknova TestFlight record (`com.irensaltali.seknova`). The runner uses the ASC profile `irensaltali_key` and the local signing material in `~/.asc/sekvona-testflight/`. GitHub Actions retains Apple upload receipts.
+
+The workflow also provides a manual `direct` channel for signed Apple Silicon and Intel DMG/ZIP artifacts. Set the repository variable `SEKVONA_DEVELOPER_ID_SHA1` to the Developer ID Application identity installed on the Mac mini before running that channel.
+
 Preserve fork features when incorporating upstream: fetch `upstream`, merge its `master` into this fork's `main`, resolve conflicts, and run the test suite. Do not reset `main` to upstream or change the fork's update destination.
 
 ## Cloud Sync

@@ -70,3 +70,6 @@ __pycache__/
 !docs/
 !docs/cloud-sync/
 !docs/cloud-sync/*.md
+
+# Local TestFlight packaging output
+/deployment-report/

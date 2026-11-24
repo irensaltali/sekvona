@@ -1,0 +1,71 @@
+name: macOS local release
+
+on:
+  push:
+    branches: [development]
+    paths:
+      - 'apps/desktop/**'
+      - 'packages/**'
+      - 'build/**'
+      - 'branding/**'
+      - 'package.json'
+      - 'yarn.lock'
+      - 'scripts/ci-mac-testflight.sh'
+      - '.github/workflows/macos-local-release.yml'
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Distribution channel
+        type: choice
+        options: [testflight, direct]
+        default: testflight
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    if: >-
+      github.repository == 'irensaltali/sekvona' &&
+      (github.ref == 'refs/heads/development' || github.ref == 'refs/heads/main') &&
+      (github.event_name == 'push' || inputs.channel == 'testflight')
+    runs-on: [self-hosted, macOS, ARM64, sekvona-macos-release]
+    timeout-minutes: 90
+    env:
+      PATH: /opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Package and verify App Store build
+        run: bash scripts/ci-mac-testflight.sh package
+      - name: Upload to TestFlight and wait for processing
+        run: bash scripts/ci-mac-testflight.sh upload
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sekvona-testflight-receipt
+          path: deployment-report/*.json
+          if-no-files-found: ignore
+          retention-days: 14
+  direct:
+    if: >-
+      github.repository == 'irensaltali/sekvona' &&
+      (github.ref == 'refs/heads/development' || github.ref == 'refs/heads/main') &&
+      github.event_name == 'workflow_dispatch' && inputs.channel == 'direct'
+    runs-on: [self-hosted, macOS, ARM64, sekvona-macos-release]
+    timeout-minutes: 120
+    env:
+      PATH: /opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+      CSC_NAME: ${{ vars.SEKVONA_DEVELOPER_ID_SHA1 }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Prepare signed and notarized DMG and ZIP files
+        run: bash scripts/ci-mac.sh --signed
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sekvona-macos-release
+          path: dist/ci/
+          retention-days: 14

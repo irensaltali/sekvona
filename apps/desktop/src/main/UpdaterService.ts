@@ -79,8 +79,8 @@ export class UpdaterService extends EventEmitter {
   init(): void {
     if (this.started) return; // idempotent — never double-wire listeners/timers
     this.started = true;
-    if (!app.isPackaged) {
-      // Dev: there is no app-update.yml and no installer to swap. Stay idle.
+    if (!app.isPackaged || process.mas) {
+      // Store builds update through Apple; development has no update feed.
       return;
     }
     autoUpdater.autoDownload = !this.isMac;
@@ -120,7 +120,7 @@ export class UpdaterService extends EventEmitter {
 
   /** Re-evaluate after settings change (e.g. autoUpdate toggled on). */
   onSettingsChanged(): void {
-    if (!app.isPackaged) return;
+    if (!app.isPackaged || process.mas) return;
     if (this.getSettings().autoUpdate) void this.maybeAutoCheck();
   }
 
@@ -139,8 +139,8 @@ export class UpdaterService extends EventEmitter {
   }
 
   private async runCheck(manual: boolean): Promise<void> {
-    if (!app.isPackaged) {
-      // Dev: give manual checks honest feedback, stay quiet otherwise.
+    if (!app.isPackaged || process.mas) {
+      // There is no GitHub update feed for development or Store builds.
       this.set(manual ? { kind: "up-to-date", version: app.getVersion() } : { kind: "idle" });
       return;
     }
