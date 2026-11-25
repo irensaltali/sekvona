@@ -11,4 +11,4 @@ packages.forEach((pkg, i) => {
   pkg.version = next;
   writeFileSync(paths[i], `${JSON.stringify(pkg, null, 2)}\n`);
 });
-console.log(`Version set to ${next}. Commit, then push main and tag v${next} to origin.`);
+console.log(`Version set to ${next}. The release workflow tags the commit on main.`);

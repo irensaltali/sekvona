@@ -250,20 +250,9 @@ Requires Node 22+ and Yarn 4 (via Corepack).
 
 GitHub installs use this fork’s GitHub Releases feed. Developer ID signed macOS releases, Windows NSIS releases, and Linux AppImages can download and install updates through the app. Older ad-hoc macOS installs link to the matching DMG. Install the first Developer ID signed DMG once to enable in-app installation for later releases. Mac App Store and TestFlight installations update through Apple. Kopia is bundled in Mac releases; Windows/Linux Cloud Sync requires a compatible Kopia installation on PATH.
 
-To publish the next version from the tested `main` branch:
+Every promotion to `main` starts the GitHub Release workflow. CI reserves the next patch tag on the merge commit and sets that version in the build workspace. To choose a higher major or minor version, commit the version bump through a feature PR to `development` before promoting it. For example, run `yarn release:version 0.6.0` on the feature branch.
 
-```sh
-yarn release:version 0.5.1
-yarn install --immutable
-yarn typecheck
-yarn test
-git add package.json apps/desktop/package.json
-git commit -m "chore(release): 0.5.1"
-git tag -a v0.5.1 -m "Sekvona 0.5.1"
-git push origin main v0.5.1
-```
-
-The `Release` workflow verifies the tag, runs tests, and packages Apple Silicon, Intel, Windows, and Linux builds. It validates artifact hashes and combines the Mac architecture feeds before publishing a completed GitHub Release. Failed builds never update the public feed. Publishing uses the repository's built-in `GITHUB_TOKEN`; no personal token is needed. For a failed run, fix the cause and publish a new version, or rerun the same workflow if the failure was transient. If only the workflow needs a fix (such as a retired runner), dispatch `Release` from `main` with the existing `release_tag`; all builds still check out and verify that tag. Do not move published tags.
+The workflow tests the tagged commit and packages Apple Silicon, Intel, Windows, and Linux builds. It validates artifact hashes and combines the Mac architecture feeds before publishing. A rerun uses the same tag and commit, and failed builds leave the public release unchanged. For a workflow-only fix, dispatch `Release` from `main` with the existing `release_tag`. Publishing uses the repository’s built-in `GITHUB_TOKEN`.
 
 `yarn dist:mac arm64` creates a local installer without publishing. The separate `Build macOS distributables` workflow is manual and produces downloadable Actions artifacts only.
 
