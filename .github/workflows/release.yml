@@ -81,6 +81,7 @@ jobs:
           corepack enable
           corepack prepare yarn@4.5.0 --activate
       - name: Set package versions from the reserved release tag
+        shell: bash
         env:
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
         run: |
@@ -131,6 +132,7 @@ jobs:
           corepack enable
           corepack prepare yarn@4.5.0 --activate
       - name: Set package versions from the reserved release tag
+        shell: bash
         env:
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
         run: |
@@ -208,6 +210,7 @@ jobs:
           corepack enable
           corepack prepare yarn@4.5.0 --activate
       - name: Set package versions from the reserved release tag
+        shell: bash
         env:
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
         run: |
