@@ -103,6 +103,7 @@ interface SystemInfo {
   mcpHttpUrl: string | null;
   appVersion: string;
   platform: NodeJS.Platform;
+  updateMode?: "apple" | "manual" | "automatic";
 }
 
 export type RunningStateChange =

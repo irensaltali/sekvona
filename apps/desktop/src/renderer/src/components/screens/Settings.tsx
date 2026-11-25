@@ -382,38 +382,44 @@ export function Settings({ onImport }: Props): JSX.Element {
           icon={<DownloadCloud size={16} strokeWidth={1.5} />}
           title="Updates"
           desc={
-            info?.platform === "darwin"
-              ? "Auto-install isn't available on macOS yet — we'll notify you in-app to download the new version."
-              : "Sekvona checks for updates in the background and installs them on restart."
+            info?.updateMode === "apple"
+              ? "Manage updates in the Mac App Store or TestFlight."
+              : info?.updateMode === "manual"
+                ? "Sekvona checks GitHub Releases and links to the latest installer."
+                : "Sekvona checks GitHub Releases in the background and installs updates on restart."
           }
         >
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              type="button"
-              className="btn-secondary px-3 py-[7px] text-[12px] rounded-[9px] inline-flex items-center gap-1.5"
-              onClick={() => void checkForUpdates()}
-              disabled={updateStatus?.kind === "checking"}
-            >
-              <RefreshCw
-                size={12}
-                className={updateStatus?.kind === "checking" ? "animate-spin" : ""}
-              />
-              Check for updates
-            </button>
-            <span className="text-[12px] text-slate-400">{updateLabel(updateStatus)}</span>
-          </div>
-          <div className="text-[11px] text-slate-600 mt-2">
-            Last checked: {lastChecked ? relativeTime(new Date(lastChecked).toISOString()) : "never"}
-          </div>
-          <label className="flex items-center gap-2.5 mt-3 text-[12px] text-slate-400 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.autoUpdate}
-              onChange={(e) => void patch({ autoUpdate: e.target.checked })}
-              className="w-3.5 h-3.5 rounded accent-purple-500"
-            />
-            Automatically check for updates
-          </label>
+          {info?.updateMode !== "apple" && (
+            <>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <button
+                  type="button"
+                  className="btn-secondary px-3 py-[7px] text-[12px] rounded-[9px] inline-flex items-center gap-1.5"
+                  onClick={() => void checkForUpdates()}
+                  disabled={updateStatus?.kind === "checking"}
+                >
+                  <RefreshCw
+                    size={12}
+                    className={updateStatus?.kind === "checking" ? "animate-spin" : ""}
+                  />
+                  Check for updates
+                </button>
+                <span className="text-[12px] text-slate-400">{updateLabel(updateStatus)}</span>
+              </div>
+              <div className="text-[11px] text-slate-600 mt-2">
+                Last checked: {lastChecked ? relativeTime(new Date(lastChecked).toISOString()) : "never"}
+              </div>
+              <label className="flex items-center gap-2.5 mt-3 text-[12px] text-slate-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.autoUpdate}
+                  onChange={(e) => void patch({ autoUpdate: e.target.checked })}
+                  className="w-3.5 h-3.5 rounded accent-purple-500"
+                />
+                Automatically check for updates
+              </label>
+            </>
+          )}
         </Row>
 
         <Row

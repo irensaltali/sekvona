@@ -37,7 +37,25 @@ if ! command -v yarn >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ ! -d "$ROOT_DIR/node_modules" ]]; then
+builder_config=(--publish never)
+if [[ "${SEKVONA_MAC_RELEASE:-0}" == 1 ]]; then
+  command -v asc >/dev/null || { echo "error: asc is required for notarization" >&2; exit 1; }
+  identity="${CSC_NAME:-}"
+  if [[ ! "$identity" =~ ^[[:xdigit:]]{40}$ ]] ||
+    ! security find-identity -v -p codesigning | awk -v id="$identity" '
+      toupper($2) == toupper(id) && /"Developer ID Application:/ { found = 1 }
+      END { exit !found }
+    '; then
+    echo "error: set CSC_NAME to the SHA-1 of a Developer ID Application identity in the local Keychain" >&2
+    exit 1
+  fi
+  identity="$(printf '%s' "$identity" | tr '[:lower:]' '[:upper:]')"
+  export CSC_NAME="$identity"
+  asc notarization list --limit 1 >/dev/null
+  export SEKVONA_MAC_RELEASE_ARCH="$ARCH"
+  builder_config+=(--config.mac.identity="$identity" --config.mac.hardenedRuntime=true --config.forceCodeSigning=true
+    --config.extraMetadata.sekvonaSignedMacUpdates=true)
+elif [[ ! -d "$ROOT_DIR/node_modules" ]]; then
   echo "error: dependencies are missing; run 'yarn install' first" >&2
   exit 1
 fi
@@ -82,7 +100,18 @@ for output in "${required_outputs[@]}"; do
 done
 
 node "$DESKTOP_DIR/scripts/strip-workspace-symlinks.cjs"
-yarn workspace @multizen/desktop exec electron-builder --mac --"$ARCH" --publish never
+yarn workspace @multizen/desktop exec electron-builder --mac --"$ARCH" "${builder_config[@]}"
+
+if [[ "${SEKVONA_MAC_RELEASE:-0}" == 1 ]]; then
+  dmg="$RELEASE_DIR/$DMG_NAME"
+  test -f "$dmg"
+  test -f "$RELEASE_DIR/$ZIP_NAME"
+  codesign --force --sign "$identity" --timestamp "$dmg"
+  asc notarization submit --file "$dmg" --wait
+  asc notarization staple --file "$dmg" --confirm
+  asc notarization validate --file "$dmg"
+  spctl --assess --type open --context context:primary-signature "$dmg"
+fi
 
 for artifact in "$DMG_NAME" "$ZIP_NAME"; do
   if [[ ! -f "$RELEASE_DIR/$artifact" ]]; then
@@ -92,12 +121,42 @@ for artifact in "$DMG_NAME" "$ZIP_NAME"; do
   cp "$RELEASE_DIR/$artifact" "$BUNDLE_DIR/"
 done
 
+if [[ "${SEKVONA_MAC_RELEASE:-0}" == 1 ]]; then
+  # Stapling modifies the DMG after electron-builder calculates its checksum.
+  # Squirrel updates use the signed ZIP, which is already final at that point.
+  node --input-type=module - "$RELEASE_DIR/latest-mac.yml" "$BUNDLE_DIR/latest-mac.yml" "$ZIP_NAME" <<'JS'
+import { readFileSync, writeFileSync } from "node:fs";
+import { parse, stringify } from "yaml";
+
+const [, , source, destination, name] = process.argv;
+const feed = parse(readFileSync(source, "utf8"));
+const zip = feed.files.find((file) => file.url === name);
+if (!zip) throw new Error(`Missing update ZIP ${name} in ${source}`);
+writeFileSync(destination, stringify({ ...feed, files: [zip], path: zip.url, sha512: zip.sha512 }));
+JS
+  if [[ -f "$RELEASE_DIR/$ZIP_NAME.blockmap" ]]; then
+    cp "$RELEASE_DIR/$ZIP_NAME.blockmap" "$BUNDLE_DIR/"
+  fi
+fi
+
 (
   cd "$BUNDLE_DIR"
   shasum -a 256 "$DMG_NAME" "$ZIP_NAME" > SHA256SUMS
 )
 
-cat > "$BUNDLE_DIR/INSTALL.txt" <<EOF
+if [[ "${SEKVONA_MAC_RELEASE:-0}" == 1 ]]; then
+  cat > "$BUNDLE_DIR/INSTALL.txt" <<EOF
+${BRAND_NAME} signed and notarized build for macOS $ARCH
+
+Open $DMG_NAME, drag ${BRAND_NAME} into Applications, then open it from there.
+You can also extract $ZIP_NAME and move the app to Applications.
+
+To verify the copied files:
+
+   shasum -a 256 -c SHA256SUMS
+EOF
+else
+  cat > "$BUNDLE_DIR/INSTALL.txt" <<EOF
 ${BRAND_NAME} test build for macOS $ARCH
 
 1. Open $DMG_NAME and drag ${BRAND_NAME} into Applications.
@@ -111,6 +170,7 @@ To verify the copied files:
 
    shasum -a 256 -c SHA256SUMS
 EOF
+fi
 
 echo
 echo "Distributable bundle created:"

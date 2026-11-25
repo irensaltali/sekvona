@@ -7,6 +7,8 @@
 
 Sekvona is the new name for this fork of MultiZen. Existing installations keep their profiles and settings. Releases preceding the rename use the MultiZen name.
 
+![Sekvona desktop app showing six demo browser profiles](landing/src/assets/sekvona-profiles-demo.webp)
+
 ## Contributing
 
 Branch from `development` using `feature/<description>`. Open feature PRs against `development`, then promote tested changes to `main` through a release PR. See [branch rules](AGENTS.md).
@@ -27,7 +29,7 @@ The result: your AI agent in Cursor or Claude Desktop can complete real authenti
 
 Download the architecture-matched DMG from [this fork's releases](https://github.com/irensaltali/sekvona/releases/latest), then drag Sekvona into Applications. This fork includes Cloud Sync and the MCP gateway. Use this repository’s builds; upstream installers do not include the fork additions.
 
-The Mac build uses ad-hoc signing. If macOS blocks the downloaded app, run:
+Older Mac builds use ad-hoc signing. If macOS blocks the downloaded app, run:
 
 ```sh
 xattr -cr /Applications/Sekvona.app
@@ -246,7 +248,7 @@ Requires Node 22+ and Yarn 4 (via Corepack).
 
 ## Fork releases and updates
 
-Updates come exclusively from `irensaltali/sekvona`. On macOS the app checks for updates and links to the matching DMG; silent installation is not enabled for ad-hoc signatures. Windows and Linux use electron-updater's install flow. Kopia is bundled in the Mac releases; Windows/Linux Cloud Sync still requires a compatible Kopia installation on PATH.
+GitHub installs use this fork’s GitHub Releases feed. Developer ID signed macOS releases, Windows NSIS releases, and Linux AppImages can download and install updates through the app. Older ad-hoc macOS installs link to the matching DMG. Install the first Developer ID signed DMG once to enable in-app installation for later releases. Mac App Store and TestFlight installations update through Apple. Kopia is bundled in Mac releases; Windows/Linux Cloud Sync requires a compatible Kopia installation on PATH.
 
 To publish the next version from the tested `main` branch:
 
@@ -266,6 +268,18 @@ The `Release` workflow verifies the tag, runs tests, and packages Apple Silicon,
 `yarn dist:mac arm64` creates a local installer without publishing. The separate `Build macOS distributables` workflow is manual and produces downloadable Actions artifacts only.
 
 For a local macOS CI build, run `dagu start --default-working-dir "$PWD" .dagu/sekvona-mac.yaml` from the repository root on a Mac with Yarn and Dagu installed. This manual job builds the current committed HEAD in a temporary worktree for the host architecture, verifies the DMG and ZIP, and saves them under `dist/ci/`.
+
+To prepare signed macOS release assets locally, set `CSC_NAME` to the SHA-1 fingerprint of a **Developer ID Application** identity in your Keychain. Authenticate the `asc` CLI with the same Apple Developer team. Then run:
+
+```sh
+dagu start --default-working-dir "$PWD" .dagu/sekvona-mac-release.yaml
+```
+
+The job builds the committed HEAD for Apple Silicon and Intel. It signs the app and embedded binaries with Hardened Runtime, notarizes the app and DMG through ASC, checks Gatekeeper and the stapled tickets, and writes verified DMGs, ZIPs, and checksums to `dist/ci/`. It prepares assets without publishing a GitHub release.
+
+The **macOS local release** GitHub Actions workflow runs on the dedicated Mac mini runner `sekvona-macos-release`. Desktop changes merged to `development` build a Mac App Store package for Apple Silicon on macOS 12 or later and upload it to the Seknova TestFlight record (`com.irensaltali.seknova`). The runner uses the ASC profile `irensaltali_key` and the local signing material in `~/.asc/sekvona-testflight/`. GitHub Actions retains Apple upload receipts.
+
+The workflow also provides a manual `direct` channel for signed Apple Silicon and Intel DMG/ZIP artifacts. Set the repository variable `SEKVONA_DEVELOPER_ID_SHA1` to the Developer ID Application identity installed on the Mac mini before running that channel.
 
 Preserve fork features when incorporating upstream: fetch `upstream`, merge its `master` into this fork's `main`, resolve conflicts, and run the test suite. Do not reset `main` to upstream or change the fork's update destination.
 
